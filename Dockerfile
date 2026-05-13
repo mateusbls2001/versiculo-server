@@ -23,6 +23,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN mkdir -p /app/fonts
-COPY fonts/ /app/fonts/
+COPY Lora-Bold.ttf /app/fonts/
+COPY Lora-Regular.ttf /app/fonts/
 
 CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:8080 --workers 2 --timeout 120"]
