@@ -8,37 +8,29 @@ VIDEO_DURATION = 8
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ── FONTS ──────────────────────────────────────────────────────────────────────
-LORA_BOLD = "/app/fonts/Lora-Bold.ttf"
-LORA_REG  = "/app/fonts/Lora-Regular.ttf"
-FB_BOLD   = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FB_REG    = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+DM_SANS_BOLD = "/app/fonts/DMSans-Bold.ttf"
+DM_SANS_REG  = "/app/fonts/DMSans-Regular.ttf"
+FB_BOLD      = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FB_REG       = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 def load_font(path, size):
     try:    return ImageFont.truetype(path, size)
     except: return ImageFont.load_default()
 
-def serif_bold(size):
-    for p in [LORA_BOLD, FB_BOLD]:
+def sans_bold(size):
+    for p in [DM_SANS_BOLD, FB_BOLD]:
         try: return ImageFont.truetype(p, size)
         except: pass
     return ImageFont.load_default()
 
-def serif_reg(size):
-    for p in [LORA_REG, FB_REG]:
+def sans_reg(size):
+    for p in [DM_SANS_REG, FB_REG]:
         try: return ImageFont.truetype(p, size)
         except: pass
     return ImageFont.load_default()
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-HANDLE   = "@versiculo_diario001"
-PALETTES = [
-    (173, 216, 230),  # light blue
-    (176, 224, 160),  # soft green
-    (255, 218, 185),  # peach
-    (216, 191, 216),  # lavender
-    (255, 228, 181),  # warm yellow
-    (175, 238, 238),  # turquoise
-]
+HANDLE = "@versiculo_diario001"
 
 # ── HELPERS ────────────────────────────────────────────────────────────────────
 def wrap_text(draw, text, font, max_width):
@@ -56,66 +48,42 @@ def wrap_text(draw, text, font, max_width):
         lines.append(current)
     return lines
 
-def draw_brush(draw, cx, cy, w, h, color, seed=42):
-    rng = random.Random(seed)
-    r, g, b = color
-    for _ in range(18):
-        ox = rng.randint(-int(w*0.25), int(w*0.25))
-        oy = rng.randint(-int(h*0.30), int(h*0.30))
-        ew = w + rng.randint(-int(w*0.10), int(w*0.10))
-        eh = h + rng.randint(-int(h*0.15), int(h*0.15))
-        a  = rng.randint(45, 95)
-        draw.ellipse([cx-ew//2+ox, cy-eh//2+oy,
-                      cx+ew//2+ox, cy+eh//2+oy], fill=(r,g,b,a))
-    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], fill=(r,g,b,130))
-
 # ── FRAME CREATOR ──────────────────────────────────────────────────────────────
 def create_frame(phrase, reference, palette_idx=None):
     W = H = 1080
-    img  = Image.new('RGBA', (W, H), (252, 252, 252, 255))
-    draw = ImageDraw.Draw(img, 'RGBA')
+    img  = Image.new('RGB', (W, H), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
 
-    font_verse  = serif_bold(68)
-    font_ref    = serif_reg(52)
-    font_handle = load_font(FB_REG, 26)
+    font_verse  = sans_bold(30)
+    font_ref    = sans_reg(24)
+    font_handle = sans_reg(20)
 
-    lines   = wrap_text(draw, phrase, font_verse, W - 160)
-    lh      = 68 + 18
+    lines   = wrap_text(draw, phrase, font_verse, W - 200)
+    lh      = 30 + 14
     total_h = len(lines) * lh
 
-    pad      = 55
-    brush_cx = W // 2
-    brush_cy = H // 2 - 20
-    brush_w  = W - 60
-    brush_h  = total_h + pad * 2 + 60
-
-    idx   = palette_idx if palette_idx is not None else random.randint(0, len(PALETTES)-1)
-    color = PALETTES[idx % len(PALETTES)]
-    draw_brush(draw, brush_cx, brush_cy, brush_w, brush_h, color, seed=idx*13+7)
-
-    # Verse
-    y = brush_cy - total_h // 2 + 10
+    # Verso centralizado verticalmente
+    y = (H - total_h) // 2 - 40
     for line in lines:
         bb = draw.textbbox((0,0), line, font=font_verse)
         tw = bb[2]-bb[0]
-        draw.text(((W-tw)//2, y), line, font=font_verse, fill=(30,30,30,255))
+        draw.text(((W-tw)//2, y), line, font=font_verse, fill=(30, 30, 30))
         y += lh
 
-    # Reference
+    # Referência
     if reference:
-        ref_y = brush_cy + brush_h//2 + 28
-        bb_r  = draw.textbbox((0,0), reference, font=font_ref)
-        tw_r  = bb_r[2]-bb_r[0]
-        draw.text(((W-tw_r)//2, ref_y), reference,
-                 font=font_ref, fill=(50,50,50,220))
+        bb_r = draw.textbbox((0,0), reference, font=font_ref)
+        tw_r = bb_r[2]-bb_r[0]
+        draw.text(((W-tw_r)//2, y + 30), reference,
+                  font=font_ref, fill=(100, 100, 100))
 
     # Handle
     bb_h = draw.textbbox((0,0), HANDLE, font=font_handle)
     tw_h = bb_h[2]-bb_h[0]
     draw.text(((W-tw_h)//2, H-55), HANDLE,
-             font=font_handle, fill=(160,160,160,200))
+              font=font_handle, fill=(180, 180, 180))
 
-    return img.convert('RGB')
+    return img
 
 def image_to_video(img, output_path, duration=VIDEO_DURATION):
     fp = f"/tmp/{uuid.uuid4()}.png"
