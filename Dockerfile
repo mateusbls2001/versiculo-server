@@ -1,5 +1,4 @@
 FROM python:3.11-slim
-
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     fonts-dejavu-core \
@@ -14,16 +13,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /tmp/jbmono* \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
-
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
-
 COPY . .
-
 RUN mkdir -p /app/fonts
 COPY Lora-Bold.ttf /app/fonts/
 COPY Lora-Regular.ttf /app/fonts/
-
+COPY DMSans-Bold.ttf /app/fonts/
+COPY DMSans-Regular.ttf /app/fonts/
 CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:8080 --workers 2 --timeout 120"]
