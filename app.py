@@ -4,7 +4,8 @@ import subprocess, os, uuid, random
 
 app = Flask(__name__)
 OUTPUT_DIR     = "/tmp/versiculo_imgs"
-VIDEO_DURATION = 8
+MUSIC_DIR      = "/app/music"
+VIDEO_DURATION = 10
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ── FONTS ──────────────────────────────────────────────────────────────────────
@@ -31,6 +32,16 @@ def sans_reg(size):
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
 HANDLE = "@versiculo_diario001"
+
+# ── MUSIC ──────────────────────────────────────────────────────────────────────
+def get_random_music():
+    try:
+        files = [f for f in os.listdir(MUSIC_DIR) if f.endswith('.mp3') or f.endswith('.wav')]
+        if files:
+            return os.path.join(MUSIC_DIR, random.choice(files))
+    except:
+        pass
+    return None
 
 # ── HELPERS ────────────────────────────────────────────────────────────────────
 def wrap_text(draw, text, font, max_width):
@@ -62,7 +73,6 @@ def create_frame(phrase, reference, palette_idx=None):
     lh      = 30 + 14
     total_h = len(lines) * lh
 
-    # Verso centralizado verticalmente
     y = (H - total_h) // 2 - 40
     for line in lines:
         bb = draw.textbbox((0,0), line, font=font_verse)
@@ -70,14 +80,12 @@ def create_frame(phrase, reference, palette_idx=None):
         draw.text(((W-tw)//2, y), line, font=font_verse, fill=(30, 30, 30))
         y += lh
 
-    # Referência
     if reference:
         bb_r = draw.textbbox((0,0), reference, font=font_ref)
         tw_r = bb_r[2]-bb_r[0]
         draw.text(((W-tw_r)//2, y + 30), reference,
                   font=font_ref, fill=(100, 100, 100))
 
-    # Handle
     bb_h = draw.textbbox((0,0), HANDLE, font=font_handle)
     tw_h = bb_h[2]-bb_h[0]
     draw.text(((W-tw_h)//2, H-55), HANDLE,
@@ -88,10 +96,24 @@ def create_frame(phrase, reference, palette_idx=None):
 def image_to_video(img, output_path, duration=VIDEO_DURATION):
     fp = f"/tmp/{uuid.uuid4()}.png"
     img.save(fp, 'PNG')
-    cmd = ["ffmpeg","-y","-loop","1","-i",fp,
-           "-vf",f"fade=in:0:15,fade=out:st={duration-1}:d=1,scale=1080:1080",
-           "-c:v","libx264","-t",str(duration),
-           "-pix_fmt","yuv420p","-movflags","+faststart",output_path]
+
+    music_path = get_random_music()
+
+    if music_path:
+        cmd = ["ffmpeg","-y","-loop","1","-i",fp,
+               "-i", music_path,
+               "-vf",f"fade=in:0:15,fade=out:st={duration-1}:d=1,scale=1080:1080",
+               "-af",f"afade=in:st=0:d=1,afade=out:st={duration-1}:d=1",
+               "-c:v","libx264","-c:a","aac","-b:a","128k",
+               "-t",str(duration),
+               "-pix_fmt","yuv420p","-movflags","+faststart",
+               "-shortest", output_path]
+    else:
+        cmd = ["ffmpeg","-y","-loop","1","-i",fp,
+               "-vf",f"fade=in:0:15,fade=out:st={duration-1}:d=1,scale=1080:1080",
+               "-c:v","libx264","-t",str(duration),
+               "-pix_fmt","yuv420p","-movflags","+faststart",output_path]
+
     r = subprocess.run(cmd, capture_output=True, text=True)
     os.remove(fp)
     if r.returncode != 0:
